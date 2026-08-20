@@ -113,6 +113,8 @@
                                 type="text"
                                 id="pinfl"
                                 name="pinfl"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
                                 maxlength="14"
                                 value="{{ pinfl_val|default:'' }}"
                                 placeholder="{{ t.pinfl_placeholder }}"
@@ -213,6 +215,11 @@
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200/80">
                                         ✅
                                         {{ t.pass }}
+                                    </span>
+                                {% elif item.status|lower == 'no_data' %}
+                                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 border border-zinc-200">
+                                        ➖
+                                        {{ t.no_data }}
                                     </span>
                                 {% else %}
                                     <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/80">

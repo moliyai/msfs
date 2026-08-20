@@ -5,6 +5,8 @@ import requests
 MIB_URL = "http://91.90.216.68:9012"
 KATM_URL = "http://91.90.216.68:9013"
 
+_MISSING = object()
+
 TRANSLATIONS = {
     "ru": {
         "lang_code": "ru",
@@ -26,6 +28,7 @@ TRANSLATIONS = {
         "checks_run": "проверок выполнено",
         "pass": "Пройдено",
         "fail": "Не пройдено",
+        "no_data": "Нет данных",
         "no_results_title": "Нет результатов для отображения",
         "no_results_subtitle": "Отправьте ПИНФЛ или отчет КАТМ для просмотра критериев и оценки.",
         "days": "дн.",
@@ -73,6 +76,7 @@ TRANSLATIONS = {
         "checks_run": "ta tekshiruv o'tkazildi",
         "pass": "O'tdi",
         "fail": "O'tmadi",
+        "no_data": "Ma'lumot yo'q",
         "no_results_title": "Ko'rsatish uchun natijalar yo'q",
         "no_results_subtitle": "Mezonlar va ballarni ko'rish uchun JShShIR yoki KATM hujjatini yuboring.",
         "days": "kun",
@@ -120,6 +124,7 @@ TRANSLATIONS = {
         "checks_run": "та текширув ўтказилди",
         "pass": "Ўтди",
         "fail": "Ўтмади",
+        "no_data": "Маълумот йўқ",
         "no_results_title": "Кўрсатиш учун натижалар йўқ",
         "no_results_subtitle": "Мезонлар ва балларни кўриш учун ЖШШИР ёки КАТМ ҳужжатини юборинг.",
         "days": "кун",
@@ -151,27 +156,38 @@ TRANSLATIONS = {
 
 
 def send_request(url):
+    """Returns parsed JSON dict on success, or _MISSING on any failure
+    (network error, timeout, non-2xx status, invalid JSON)."""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         return response.json()
     except Exception:
-        return {}
+        return _MISSING
 
 
 def check_fly_status(pinfl):
     response = send_request(f"{MIB_URL}/check_fly_limit/{pinfl}")
-    return response.get("has_limit", False)
+    if response is _MISSING:
+        return _MISSING
+    return response.get("has_limit", _MISSING)
 
 
 def check_bad_history(pinfl):
     response = send_request(f"{MIB_URL}/check_loan_history/{pinfl}")
-    return response.get("has_history", False)
+    if response is _MISSING:
+        return _MISSING
+    return response.get("has_history", _MISSING)
 
 
 def check_debt(pinfl):
     response = send_request(f"{MIB_URL}/check_debt/{pinfl}")
-    return response.get("amounts_by_category", [])
+    if response is _MISSING:
+        return _MISSING
+    val = response.get("amounts_by_category", _MISSING)
+    if val is _MISSING or val is None:
+        return _MISSING
+    return val
 
 
 def get_katm_data(katm_file):
@@ -179,7 +195,22 @@ def get_katm_data(katm_file):
         "file": (katm_file.name, katm_file.file, katm_file.content_type)
     }
     response = requests.post(f"{KATM_URL}/extract", files=files, timeout=15)
+    response.raise_for_status()
     return response.json()
+
+
+def _field_or_no_data(t, key, container, field, cast, fmt, limit_check):
+    """Builds a single result row. Shows 'no_data' status if the field
+    is missing or null in the source payload, instead of silently
+    defaulting to 0 and reporting a false pass."""
+    raw = container.get(field, _MISSING) if container is not _MISSING else _MISSING
+    if raw is _MISSING or raw is None:
+        return {"key": t[key], "value": t["no_data"], "status": "no_data"}
+    try:
+        val = cast(raw)
+    except (TypeError, ValueError):
+        return {"key": t[key], "value": t["no_data"], "status": "no_data"}
+    return {"key": t[key], "value": fmt(val), "status": "pass" if limit_check(val) else "fail"}
 
 
 def evaluate_mib(pinfl, t):
@@ -187,27 +218,36 @@ def evaluate_mib(pinfl, t):
 
     # 1. Fly limit
     has_fly_limit = check_fly_status(pinfl)
-    results.append({
-        "key": t["rule_mib_fly"],
-        "value": t["rule_mib_fly_has"] if has_fly_limit else t["rule_mib_fly_none"],
-        "status": "fail" if has_fly_limit else "pass",
-    })
+    if has_fly_limit is _MISSING:
+        results.append({"key": t["rule_mib_fly"], "value": t["no_data"], "status": "no_data"})
+    else:
+        results.append({
+            "key": t["rule_mib_fly"],
+            "value": t["rule_mib_fly_has"] if has_fly_limit else t["rule_mib_fly_none"],
+            "status": "fail" if has_fly_limit else "pass",
+        })
 
     # 2. Executive / negative history
     has_bad_history = check_bad_history(pinfl)
-    results.append({
-        "key": t["rule_mib_history"],
-        "value": t["rule_mib_history_has"] if has_bad_history else t["rule_mib_history_none"],
-        "status": "fail" if has_bad_history else "pass",
-    })
+    if has_bad_history is _MISSING:
+        results.append({"key": t["rule_mib_history"], "value": t["no_data"], "status": "no_data"})
+    else:
+        results.append({
+            "key": t["rule_mib_history"],
+            "value": t["rule_mib_history_has"] if has_bad_history else t["rule_mib_history_none"],
+            "status": "fail" if has_bad_history else "pass",
+        })
 
     # 3 & 4. Debt categories
     debts = check_debt(pinfl)
+    if debts is _MISSING:
+        debts = []
+
     admin_fine_total = 0.0
     recovery_debt_total = 0.0
 
     for item in debts:
-        name = item.get("name", "").lower()
+        name = (item.get("name") or "").lower()
         amount = float(item.get("amount", 0) or 0)
 
         if "маъмурий" in name or "ma'muriy" in name or "административ" in name:
@@ -233,64 +273,64 @@ def evaluate_mib(pinfl, t):
 def evaluate_katm(katm_data, t):
     results = []
 
-    scoring = katm_data.get("scoring_ciac", {})
-    overview = katm_data.get("general_overview_open_and_closed", {})
-    incomes = katm_data.get("incomes", {}).get("inps", [{}])[0]
+    scoring = katm_data.get("scoring_ciac")
+    scoring = scoring if scoring is not None else _MISSING
+
+    overview = katm_data.get("general_overview_open_and_closed")
+    overview = overview if overview is not None else _MISSING
+
+    incomes_list = katm_data.get("incomes") or {}
+    inps_list = incomes_list.get("inps") or [{}]
+    incomes = inps_list[0] if inps_list else {}
 
     # 1. Scoring
-    credit_score = float(scoring.get("credit_score", 0) or 0)
-    results.append({
-        "key": t["rule_katm_score"],
-        "value": f"{credit_score:.0f}",
-        "status": "pass" if credit_score > 200 else "fail",
-    })
+    results.append(_field_or_no_data(
+        t, "rule_katm_score", scoring, "credit_score", float,
+        lambda v: f"{v:.0f}", lambda v: v > 200,
+    ))
 
     # 2. Max Principal Overdue Days
-    max_prin_days = int(overview.get("max_principal_overdue_days", 0) or 0)
-    results.append({
-        "key": t["rule_katm_prin_days"],
-        "value": f"{max_prin_days} {t['days']}",
-        "status": "pass" if max_prin_days <= 150 else "fail",
-    })
+    results.append(_field_or_no_data(
+        t, "rule_katm_prin_days", overview, "max_principal_overdue_days", int,
+        lambda v: f"{v} {t['days']}", lambda v: v <= 150,
+    ))
 
     # 3. Max Continuous Overdue Days Pct
-    max_cont_pct_days = int(overview.get("max_continuous_overdue_days_pct", 0) or 0)
-    results.append({
-        "key": t["rule_katm_cont_days"],
-        "value": f"{max_cont_pct_days} {t['days']}",
-        "status": "pass" if max_cont_pct_days <= 120 else "fail",
-    })
+    results.append(_field_or_no_data(
+        t, "rule_katm_cont_days", overview, "max_continuous_overdue_days_pct", int,
+        lambda v: f"{v} {t['days']}", lambda v: v <= 120,
+    ))
 
     # 4. Max Principal Overdue Amount
-    max_prin_amount = float(overview.get("max_principal_overdue_amount", 0) or 0)
-    results.append({
-        "key": t["rule_katm_prin_amount"],
-        "value": f"{max_prin_amount:,.0f} {t['sum']}",
-        "status": "pass" if max_prin_amount <= 5_000_000 else "fail",
-    })
+    results.append(_field_or_no_data(
+        t, "rule_katm_prin_amount", overview, "max_principal_overdue_amount", float,
+        lambda v: f"{v:,.0f} {t['sum']}", lambda v: v <= 5_000_000,
+    ))
 
     # 5. Max Pct Overdue Amount
-    max_pct_amount = float(overview.get("max_overdue_amount_pct", 0) or 0)
-    results.append({
-        "key": t["rule_katm_pct_amount"],
-        "value": f"{max_pct_amount:,.0f} {t['sum']}",
-        "status": "pass" if max_pct_amount <= 3_000_000 else "fail",
-    })
+    results.append(_field_or_no_data(
+        t, "rule_katm_pct_amount", overview, "max_overdue_amount_pct", float,
+        lambda v: f"{v:,.0f} {t['sum']}", lambda v: v <= 3_000_000,
+    ))
 
-    # 6. LTI
-    average_monthly_payment = float(overview.get("average_monthly_payment", 0) or 0)
-    total_income = float(incomes.get("total", 0) or 0)
-    periods = 0
-    for period in incomes.get("monthly", []):
-        if period.get("amount", 0) > 0:
-            periods += 1
-    average_income = (total_income / periods) if periods > 0 else 0
-    ratio = (average_monthly_payment / average_income) if average_income > 0 else 0
-    results.append({
-        "key": t["rule_katm_lti"],
-        "value": f"{ratio * 100:.1f} %",
-        "status": "pass" if ratio <= 0.3 else "fail",
-    })
+    # 6. LTI — needs two fields (avg payment + total income), handled explicitly
+    avg_payment_raw = overview.get("average_monthly_payment", _MISSING) if overview is not _MISSING else _MISSING
+    total_income_raw = incomes.get("total", _MISSING)
+
+    if avg_payment_raw is _MISSING or avg_payment_raw is None or \
+       total_income_raw is _MISSING or total_income_raw is None:
+        results.append({"key": t["rule_katm_lti"], "value": t["no_data"], "status": "no_data"})
+    else:
+        average_monthly_payment = float(avg_payment_raw or 0)
+        total_income = float(total_income_raw or 0)
+        periods = sum(1 for p in (incomes.get("monthly") or []) if p.get("amount", 0) > 0)
+        average_income = (total_income / periods) if periods > 0 else 0
+        ratio = (average_monthly_payment / average_income) if average_income > 0 else 0
+        results.append({
+            "key": t["rule_katm_lti"],
+            "value": f"{ratio * 100:.1f} %",
+            "status": "pass" if ratio <= 0.3 else "fail",
+        })
 
     return results
 
@@ -337,7 +377,7 @@ def main(request):
             else:
                 try:
                     katm_data = get_katm_data(katm_file)
-                    pinfl = katm_data.get("credit_information_subject", {}).get("personal_id_number")
+                    pinfl = (katm_data.get("credit_information_subject") or {}).get("personal_id_number")
 
                     if not pinfl:
                         context["error"] = t["err_no_pinfl_in_pdf"]
