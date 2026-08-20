@@ -3,8 +3,8 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn --bind 0.0.0.0:8000 msfs.wsgi:application
+    command: gunicorn --bind 0.0.0.0:9016 msfs.wsgi:application
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "9016:9016"

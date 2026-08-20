@@ -16,6 +16,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . /app/
 
-EXPOSE 8000
+EXPOSE 9016
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "msfs.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:9016", "msfs.wsgi:application"]
