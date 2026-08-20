@@ -280,8 +280,8 @@ def evaluate_katm(katm_data, t):
     overview = overview if overview is not None else _MISSING
 
     incomes_list = katm_data.get("incomes") or {}
-    inps_list = incomes_list.get("inps") or [{}]
-    incomes = inps_list[0] if inps_list else {}
+    inps_list = incomes_list.get("combined") or {}
+    incomes = inps_list if inps_list else {}
 
     # 1. Scoring
     results.append(_field_or_no_data(
@@ -313,22 +313,23 @@ def evaluate_katm(katm_data, t):
         lambda v: f"{v:,.0f} {t['sum']}", lambda v: v <= 3_000_000,
     ))
 
-    # 6. LTI — needs two fields (avg payment + total income), handled explicitly
+    # 6. LTI
     avg_payment_raw = overview.get("average_monthly_payment", _MISSING) if overview is not _MISSING else _MISSING
-    total_income_raw = incomes.get("total", _MISSING)
 
-    if avg_payment_raw is _MISSING or avg_payment_raw is None or \
-       total_income_raw is _MISSING or total_income_raw is None:
+    income_item = next(
+        (item for item in reversed(incomes.get("monthly") or []) if (item.get("amount") or 0) > 0),
+        {}
+    )
+    last_non_zero_income = float(income_item.get("amount") or 0)
+
+    if avg_payment_raw is _MISSING or avg_payment_raw is None or last_non_zero_income <= 0:
         results.append({"key": t["rule_katm_lti"], "value": t["no_data"], "status": "no_data"})
     else:
         average_monthly_payment = float(avg_payment_raw or 0)
-        total_income = float(total_income_raw or 0)
-        periods = sum(1 for p in (incomes.get("monthly") or []) if p.get("amount", 0) > 0)
-        average_income = (total_income / periods) if periods > 0 else 0
-        ratio = (average_monthly_payment / average_income) if average_income > 0 else 0
+        ratio = average_monthly_payment / last_non_zero_income
         results.append({
             "key": t["rule_katm_lti"],
-            "value": f"{ratio * 100:.1f} %",
+            "value": f"{ratio * 100:.1f}% ({last_non_zero_income:,.1f})",
             "status": "pass" if ratio <= 0.3 else "fail",
         })
 
