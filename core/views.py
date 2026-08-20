@@ -50,7 +50,8 @@ TRANSLATIONS = {
         "rule_katm_prin_amount": "КАТМ: Макс. сумма просрочки по осн. долгу (≤ 5 000 000 сум)",
         "rule_katm_pct_amount": "КАТМ: Макс. сумма просрочки по % (≤ 3 000 000 сум)",
         "rule_katm_lti": "КАТМ: Долговая нагрузка (LTI ≤ 30%)",
-        "export_pdf": "Экспорт PDF"
+        "export_pdf": "Экспорт PDF",
+        "clear": "Очистить",
     },
     "uz_lat": {
         "lang_code": "uz",
@@ -96,7 +97,8 @@ TRANSLATIONS = {
         "rule_katm_prin_amount": "KATM: Asosiy qarz bo'yicha maks. kechikish summasi (≤ 5 000 000 so'm)",
         "rule_katm_pct_amount": "KATM: Foizlar bo'yicha maks. kechikish summasi (≤ 3 000 000 so'm)",
         "rule_katm_lti": "KATM: Qarz yuki (LTI ≤ 30%)",
-        "export_pdf": "PDF Export"
+        "export_pdf": "PDF Export",
+        "clear": "Tozalash",
     },
     "uz_cyr": {
         "lang_code": "uz-Cyrl",
@@ -142,7 +144,8 @@ TRANSLATIONS = {
         "rule_katm_prin_amount": "КАТМ: Асосий қарз бўйича макс. кечикиш суммаси (≤ 5 000 000 сўм)",
         "rule_katm_pct_amount": "КАТМ: Фоизлар бўйича макс. кечикиш суммаси (≤ 3 000 000 сўм)",
         "rule_katm_lti": "КАТМ: Қарз юки (LTI ≤ 30%)",
-        "export_pdf": "PDF Экспорт"
+        "export_pdf": "PDF Экспорт",
+        "clear": "Тозалаш",
     }
 }
 
