@@ -29,8 +29,12 @@ ALLOWED_HOSTS = [
     "91.90.216.68:9016",
     "localhost",
     "127.0.0.1",
+    "msfs.moliy.ai"
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'https://msfs.moliy.ai',
+]
 
 # Application definition
 
