@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-key'
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "91.90.216.68:9016",
+    "91.90.216.68",
     "localhost",
     "127.0.0.1",
     "msfs.moliy.ai"
