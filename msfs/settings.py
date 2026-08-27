@@ -36,6 +36,10 @@ CSRF_TRUSTED_ORIGINS = [
     'https://msfs.moliy.ai',
 ]
 
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'main'
+LOGOUT_REDIRECT_URL = 'login'
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -56,6 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django.contrib.auth.middleware.LoginRequiredMiddleware',
 ]
 
 ROOT_URLCONF = 'msfs.urls'

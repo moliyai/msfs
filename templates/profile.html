@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="{{ t.lang_code }}" class="h-full bg-zinc-50 antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>История проверок | {{ t.doc_title }}</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-full flex flex-col items-center justify-start p-4 sm:p-8 text-zinc-950">
+
+    <!-- Header -->
+    <header class="w-full max-w-5xl mb-8">
+        <div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-600">
+                <i data-lucide="history" class="w-3.5 h-3.5 text-zinc-800"></i> История профиля
+            </div>
+
+            <!-- Right Controls: Back to Home, Logout & Language Switcher -->
+            <div class="flex items-center gap-2.5">
+                <!-- Home Link -->
+                <a href="{% url 'main' %}" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-all">
+                    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+                    <span>На главную</span>
+                </a>
+
+                <!-- Logout URL Button -->
+                <a href="{% url 'logout' %}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-all" title="Выйти">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Выйти</span>
+                </a>
+
+                <!-- Language Switcher -->
+                <div class="inline-flex rounded-lg bg-zinc-100 p-1 border border-zinc-200 text-xs font-medium">
+                    <a href="?lang=ru" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'ru' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">RU</a>
+                    <a href="?lang=uz_lat" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_lat' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">UZ</a>
+                    <a href="?lang=uz_cyr" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_cyr' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">ЎЗ</a>
+                </div>
+            </div>
+        </div>
+        <h1 class="text-3xl font-bold tracking-tight text-zinc-900">Личный кабинет</h1>
+        <p class="text-sm text-zinc-500 mt-1">История ранее выполненных проверок ПИНФЛ и КАТМ.</p>
+    </header>
+
+    <!-- Main Content Container -->
+    <div class="w-full max-w-5xl space-y-6">
+
+        <!-- User Details Card -->
+        <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm flex items-center justify-between flex-wrap gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-700 font-semibold text-lg">
+                    {{ request.user.username|slice:":2"|upper }}
+                </div>
+                <div>
+                    <h2 class="text-base font-semibold text-zinc-900">{{ request.user.get_full_name|default:request.user.username }}</h2>
+                    <p class="text-xs text-zinc-500">{{ request.user.email|default:"Email не указан" }}</p>
+                </div>
+            </div>
+            <div class="text-xs text-zinc-500 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-lg">
+                Статус: <span class="font-medium text-zinc-800">Активен</span>
+            </div>
+        </div>
+
+        <!-- Verification History Section -->
+        <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h2 class="text-base font-semibold text-zinc-900 mb-4">История проверок</h2>
+
+            {% if reports %}
+                <div class="space-y-4">
+                    {% for report in reports %}
+                    <div class="border border-zinc-200 rounded-lg p-4 bg-zinc-50/50 hover:bg-zinc-50 transition-colors">
+                        <div class="flex items-center justify-between pb-3 border-b border-zinc-200 gap-2 flex-wrap">
+                            <div class="flex items-center gap-3">
+                                <span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-900 text-white">
+                                    {{ report.check_type|upper }}
+                                </span>
+                                <span class="text-sm font-mono font-semibold text-zinc-800">
+                                    PINFL: {{ report.pinfl }}
+                                </span>
+                            </div>
+                            <span class="text-xs text-zinc-400">
+                                {{ report.created_at|date:"d.m.Y H:i" }}
+                            </span>
+                        </div>
+
+                        <!-- Results Items List -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                            {% for item in report.items.all %}
+                            <div class="flex items-center justify-between p-2 rounded bg-white border border-zinc-200/60 text-xs">
+                                <div class="truncate pr-2">
+                                    <span class="font-medium text-zinc-800">{{ item.title }}</span><br>
+                                    <span class="text-zinc-500 font-mono">{{ item.value_display }}</span>
+                                </div>
+                                <div class="shrink-0">
+                                    {% if item.status|lower == 'pass' %}
+                                        <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium">✅</span>
+                                    {% elif item.status|lower == 'no_data' %}
+                                        <span class="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-500 border border-zinc-200 font-medium">➖</span>
+                                    {% else %}
+                                        <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-medium">❌</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination Controls -->
+                {% if reports.has_other_pages %}
+                <div class="flex items-center justify-between border-t border-zinc-100 pt-6 mt-6">
+                    <span class="text-xs text-zinc-500">
+                        Страница <span class="font-medium text-zinc-800">{{ reports.number }}</span> из <span class="font-medium text-zinc-800">{{ reports.paginator.num_pages }}</span>
+                    </span>
+
+                    <div class="inline-flex items-center gap-1.5">
+                        <!-- Previous Page -->
+                        {% if reports.has_previous %}
+                            <a href="?page={{ reports.previous_page_number }}&lang={{ lang }}" class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-all">
+                                Назад
+                            </a>
+                        {% else %}
+                            <span class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-300 cursor-not-allowed">
+                                Назад
+                            </span>
+                        {% endif %}
+
+                        <!-- Next Page -->
+                        {% if reports.has_next %}
+                            <a href="?page={{ reports.next_page_number }}&lang={{ lang }}" class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-all">
+                                Вперед
+                            </a>
+                        {% else %}
+                            <span class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-300 cursor-not-allowed">
+                                Вперед
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+            {% else %}
+                <div class="py-12 text-center flex flex-col items-center justify-center">
+                    <div class="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 mb-3">
+                        <i data-lucide="file-clock" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-sm font-medium text-zinc-700">История пуста</p>
+                    <p class="text-xs text-zinc-400 mt-1">Вы еще не выполнили ни одной проверки.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html>

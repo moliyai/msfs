@@ -1,6 +1,13 @@
+from django.contrib.auth.decorators import login_not_required
+from django.contrib.auth.views import LoginView, LogoutView
 from django.middleware.csrf import get_token
 from django.shortcuts import render
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404
 import requests
+
+# Import your newly created models
+from .models import VerificationItem, VerificationReport
 
 MIB_URL = "http://91.90.216.68:9012"
 KATM_URL = "http://91.90.216.68:9013"
@@ -38,7 +45,6 @@ TRANSLATIONS = {
         "err_no_file": "Пожалуйста, выберите PDF-файл отчета КАТМ для загрузки.",
         "err_no_pinfl_in_pdf": "Не удалось извлечь ПИНФЛ из загруженного PDF-файла КАТМ.",
         "err_katm_prefix": "Ошибка при обработке файла КАТМ: ",
-        # Rule keys
         "rule_mib_fly": "МИБ: Запрет на выезд за границу",
         "rule_mib_fly_has": "Имеется запрет",
         "rule_mib_fly_none": "Запрет отсутствует",
@@ -86,7 +92,6 @@ TRANSLATIONS = {
         "err_no_file": "Iltimos, yuklash uchun KATM hisoboti PDF faylini tanlang.",
         "err_no_pinfl_in_pdf": "Yuklangan KATM PDF faylidan JShShIR aniqlanmadi.",
         "err_katm_prefix": "KATM faylini qayta ishlashda xatolik: ",
-        # Rule keys
         "rule_mib_fly": "MIB: Chet elga chiqishga taqiq",
         "rule_mib_fly_has": "Taqiq mavjud",
         "rule_mib_fly_none": "Taqiq mavjud emas",
@@ -134,7 +139,6 @@ TRANSLATIONS = {
         "err_no_file": "Илтимос, юклаш учун КАТМ ҳисоботи PDF файлини танланг.",
         "err_no_pinfl_in_pdf": "Юкланган КАТМ PDF файлидан ЖШШИР аниқланмади.",
         "err_katm_prefix": "КАТМ файлини қайта ишлашда хатолик: ",
-        # Rule keys
         "rule_mib_fly": "МИБ: Чет элга чиқишга тақиқ",
         "rule_mib_fly_has": "Тақиқ мавжуд",
         "rule_mib_fly_none": "Тақиқ мавжуд эмас",
@@ -151,13 +155,11 @@ TRANSLATIONS = {
         "rule_katm_lti": "КАТМ: Қарз юки (LTI ≤ 30%)",
         "export_pdf": "PDF Экспорт",
         "clear": "Тозалаш",
-    }
+    },
 }
 
 
 def send_request(url):
-    """Returns parsed JSON dict on success, or _MISSING on any failure
-    (network error, timeout, non-2xx status, invalid JSON)."""
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -200,45 +202,67 @@ def get_katm_data(katm_file):
 
 
 def _field_or_no_data(t, key, container, field, cast, fmt, limit_check):
-    """Builds a single result row. Shows 'no_data' status if the field
-    is missing or null in the source payload, instead of silently
-    defaulting to 0 and reporting a false pass."""
-    raw = container.get(field, _MISSING) if container is not _MISSING else _MISSING
+    raw = (
+        container.get(field, _MISSING)
+        if container is not _MISSING
+        else _MISSING
+    )
     if raw is _MISSING or raw is None:
         return {"key": t[key], "value": t["no_data"], "status": "no_data"}
     try:
         val = cast(raw)
     except (TypeError, ValueError):
         return {"key": t[key], "value": t["no_data"], "status": "no_data"}
-    return {"key": t[key], "value": fmt(val), "status": "pass" if limit_check(val) else "fail"}
+    return {
+        "key": t[key],
+        "value": fmt(val),
+        "status": "pass" if limit_check(val) else "fail",
+    }
 
 
 def evaluate_mib(pinfl, t):
     results = []
 
-    # 1. Fly limit
     has_fly_limit = check_fly_status(pinfl)
     if has_fly_limit is _MISSING:
-        results.append({"key": t["rule_mib_fly"], "value": t["no_data"], "status": "no_data"})
+        results.append(
+            {"key": t["rule_mib_fly"], "value": t["no_data"], "status": "no_data"}
+        )
     else:
-        results.append({
-            "key": t["rule_mib_fly"],
-            "value": t["rule_mib_fly_has"] if has_fly_limit else t["rule_mib_fly_none"],
-            "status": "fail" if has_fly_limit else "pass",
-        })
+        results.append(
+            {
+                "key": t["rule_mib_fly"],
+                "value": (
+                    t["rule_mib_fly_has"]
+                    if has_fly_limit
+                    else t["rule_mib_fly_none"]
+                ),
+                "status": "fail" if has_fly_limit else "pass",
+            }
+        )
 
-    # 2. Executive / negative history
     has_bad_history = check_bad_history(pinfl)
     if has_bad_history is _MISSING:
-        results.append({"key": t["rule_mib_history"], "value": t["no_data"], "status": "no_data"})
+        results.append(
+            {
+                "key": t["rule_mib_history"],
+                "value": t["no_data"],
+                "status": "no_data",
+            }
+        )
     else:
-        results.append({
-            "key": t["rule_mib_history"],
-            "value": t["rule_mib_history_has"] if has_bad_history else t["rule_mib_history_none"],
-            "status": "fail" if has_bad_history else "pass",
-        })
+        results.append(
+            {
+                "key": t["rule_mib_history"],
+                "value": (
+                    t["rule_mib_history_has"]
+                    if has_bad_history
+                    else t["rule_mib_history_none"]
+                ),
+                "status": "fail" if has_bad_history else "pass",
+            }
+        )
 
-    # 3 & 4. Debt categories
     debts = check_debt(pinfl)
     if debts is _MISSING:
         debts = []
@@ -250,22 +274,35 @@ def evaluate_mib(pinfl, t):
         name = (item.get("name") or "").lower()
         amount = float(item.get("amount", 0) or 0)
 
-        if "маъмурий" in name or "ma'muriy" in name or "административ" in name:
+        if (
+            "маъмурий" in name
+            or "ma'muriy" in name
+            or "административ" in name
+        ):
             admin_fine_total += amount
-        elif "ундириш" in name or "ундирув" in name or "undirish" in name or "взыскан" in name:
+        elif (
+            "ундириш" in name
+            or "ундирув" in name
+            or "undirish" in name
+            or "взыскан" in name
+        ):
             recovery_debt_total += amount
 
-    results.append({
-        "key": t["rule_mib_admin"],
-        "value": f"{admin_fine_total:,.0f} {t['sum']}",
-        "status": "pass" if admin_fine_total <= 500_000 else "fail",
-    })
+    results.append(
+        {
+            "key": t["rule_mib_admin"],
+            "value": f"{admin_fine_total:,.0f} {t['sum']}",
+            "status": "pass" if admin_fine_total <= 500_000 else "fail",
+        }
+    )
 
-    results.append({
-        "key": t["rule_mib_debt"],
-        "value": f"{recovery_debt_total:,.0f} {t['sum']}",
-        "status": "pass" if recovery_debt_total <= 200_000 else "fail",
-    })
+    results.append(
+        {
+            "key": t["rule_mib_debt"],
+            "value": f"{recovery_debt_total:,.0f} {t['sum']}",
+            "status": "pass" if recovery_debt_total <= 200_000 else "fail",
+        }
+    )
 
     return results
 
@@ -283,57 +320,123 @@ def evaluate_katm(katm_data, t):
     inps_list = incomes_list.get("combined") or {}
     incomes = inps_list if inps_list else {}
 
-    # 1. Scoring
-    results.append(_field_or_no_data(
-        t, "rule_katm_score", scoring, "credit_score", float,
-        lambda v: f"{v:.0f}", lambda v: v > 200,
-    ))
+    results.append(
+        _field_or_no_data(
+            t,
+            "rule_katm_score",
+            scoring,
+            "credit_score",
+            float,
+            lambda v: f"{v:.0f}",
+            lambda v: v > 200,
+        )
+    )
 
-    # 2. Max Principal Overdue Days
-    results.append(_field_or_no_data(
-        t, "rule_katm_prin_days", overview, "max_principal_overdue_days", int,
-        lambda v: f"{v} {t['days']}", lambda v: v <= 150,
-    ))
+    results.append(
+        _field_or_no_data(
+            t,
+            "rule_katm_prin_days",
+            overview,
+            "max_principal_overdue_days",
+            int,
+            lambda v: f"{v} {t['days']}",
+            lambda v: v <= 150,
+        )
+    )
 
-    # 3. Max Continuous Overdue Days Pct
-    results.append(_field_or_no_data(
-        t, "rule_katm_cont_days", overview, "max_continuous_overdue_days_pct", int,
-        lambda v: f"{v} {t['days']}", lambda v: v <= 120,
-    ))
+    results.append(
+        _field_or_no_data(
+            t,
+            "rule_katm_cont_days",
+            overview,
+            "max_continuous_overdue_days_pct",
+            int,
+            lambda v: f"{v} {t['days']}",
+            lambda v: v <= 120,
+        )
+    )
 
-    # 4. Max Principal Overdue Amount
-    results.append(_field_or_no_data(
-        t, "rule_katm_prin_amount", overview, "max_principal_overdue_amount", float,
-        lambda v: f"{v:,.0f} {t['sum']}", lambda v: v <= 5_000_000,
-    ))
+    results.append(
+        _field_or_no_data(
+            t,
+            "rule_katm_prin_amount",
+            overview,
+            "max_principal_overdue_amount",
+            float,
+            lambda v: f"{v:,.0f} {t['sum']}",
+            lambda v: v <= 5_000_000,
+        )
+    )
 
-    # 5. Max Pct Overdue Amount
-    results.append(_field_or_no_data(
-        t, "rule_katm_pct_amount", overview, "max_overdue_amount_pct", float,
-        lambda v: f"{v:,.0f} {t['sum']}", lambda v: v <= 3_000_000,
-    ))
+    results.append(
+        _field_or_no_data(
+            t,
+            "rule_katm_pct_amount",
+            overview,
+            "max_overdue_amount_pct",
+            float,
+            lambda v: f"{v:,.0f} {t['sum']}",
+            lambda v: v <= 3_000_000,
+        )
+    )
 
-    # 6. LTI
-    avg_payment_raw = overview.get("average_monthly_payment", _MISSING) if overview is not _MISSING else _MISSING
+    avg_payment_raw = (
+        overview.get("average_monthly_payment", _MISSING)
+        if overview is not _MISSING
+        else _MISSING
+    )
 
     income_item = next(
-        (item for item in reversed(incomes.get("monthly") or []) if (item.get("amount") or 0) > 0),
-        {}
+        (
+            item
+            for item in reversed(incomes.get("monthly") or [])
+            if (item.get("amount") or 0) > 0
+        ),
+        {},
     )
     last_non_zero_income = float(income_item.get("amount") or 0)
 
-    if avg_payment_raw is _MISSING or avg_payment_raw is None or last_non_zero_income <= 0:
-        results.append({"key": t["rule_katm_lti"], "value": t["no_data"], "status": "no_data"})
+    if (
+        avg_payment_raw is _MISSING
+        or avg_payment_raw is None
+        or last_non_zero_income <= 0
+    ):
+        results.append(
+            {
+                "key": t["rule_katm_lti"],
+                "value": t["no_data"],
+                "status": "no_data",
+            }
+        )
     else:
         average_monthly_payment = float(avg_payment_raw or 0)
         ratio = average_monthly_payment / last_non_zero_income
-        results.append({
-            "key": t["rule_katm_lti"],
-            "value": f"{ratio * 100:.1f}% ({last_non_zero_income:,.1f})",
-            "status": "pass" if ratio <= 0.3 else "fail",
-        })
+        results.append(
+            {
+                "key": t["rule_katm_lti"],
+                "value": f"{ratio * 100:.1f}% ({last_non_zero_income:,.1f})",
+                "status": "pass" if ratio <= 0.3 else "fail",
+            }
+        )
 
     return results
+
+
+def save_verification_history(pinfl, req_type, results):
+    """Helper function to save report and items into database"""
+    if not results:
+        return
+    report = VerificationReport.objects.create(pinfl=pinfl, check_type=req_type)
+    items_to_create = [
+        VerificationItem(
+            report=report,
+            title=res["key"],
+            value_display=str(res["value"]),
+            status=res["status"],
+        )
+        for res in results
+    ]
+    VerificationItem.objects.bulk_create(items_to_create)
 
 
 def main(request):
@@ -365,7 +468,9 @@ def main(request):
                 context["error"] = t["err_pinfl_length"]
             else:
                 try:
-                    context["results"] = evaluate_mib(pinfl, t)
+                    results = evaluate_mib(pinfl, t)
+                    context["results"] = results
+                    save_verification_history(pinfl, req_type, results)
                 except Exception as e:
                     context["error"] = f"{t['err_mib_prefix']}{str(e)}"
 
@@ -378,7 +483,9 @@ def main(request):
             else:
                 try:
                     katm_data = get_katm_data(katm_file)
-                    pinfl = (katm_data.get("credit_information_subject") or {}).get("personal_id_number")
+                    pinfl = (
+                        katm_data.get("credit_information_subject") or {}
+                    ).get("personal_id_number")
 
                     if not pinfl:
                         context["error"] = t["err_no_pinfl_in_pdf"]
@@ -386,8 +493,44 @@ def main(request):
                         context["pinfl_val"] = pinfl
                         katm_results = evaluate_katm(katm_data, t)
                         mib_results = evaluate_mib(str(pinfl), t)
-                        context["results"] = katm_results + mib_results
+                        results = katm_results + mib_results
+                        context["results"] = results
+                        save_verification_history(str(pinfl), req_type, results)
                 except Exception as e:
                     context["error"] = f"{t['err_katm_prefix']}{str(e)}"
 
     return render(request, "main.html", context)
+
+
+@login_not_required
+class CustomLoginView(LoginView):
+    template_name = "login.html"
+    redirect_authenticated_user = True
+
+
+def profile(request):
+    lang = request.GET.get("lang") or "ru"
+    if lang not in TRANSLATIONS:
+        lang = "ru"
+
+    t = TRANSLATIONS[lang]
+
+    # Fetch user's reports history ordered by newest first
+    reports_list = (
+        VerificationReport.objects.prefetch_related("items")
+        .all()
+        .order_by("-created_at")
+    )
+
+    # Setup pagination: 10 reports per page
+    paginator = Paginator(reports_list, 10)
+    page_number = request.GET.get("page")
+    reports = paginator.get_page(page_number)
+
+    context = {
+        "t": t,
+        "lang": lang,
+        "reports": reports,  # Page object containing the reports
+    }
+
+    return render(request, "profile.html", context)

@@ -50,16 +50,35 @@
 
     <!-- Header -->
     <header class="w-full max-w-5xl mb-8">
-        <div class="flex items-center justify-between gap-4 mb-3">
+        <div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
             <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-600">
                 <i data-lucide="shield-check" class="w-3.5 h-3.5 text-zinc-800"></i> {{ t.portal_badge }}
             </div>
 
-            <!-- Language Switcher: RU | UZ (Latin) | ЎЗ (Cyrillic) -->
-            <div class="inline-flex rounded-lg bg-zinc-100 p-1 border border-zinc-200 text-xs font-medium">
-                <a href="?lang=ru" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'ru' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">RU</a>
-                <a href="?lang=uz_lat" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_lat' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">UZ</a>
-                <a href="?lang=uz_cyr" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_cyr' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">ЎЗ</a>
+            <!-- Right Controls: Profile, Logout & Language Switcher -->
+            <div class="flex items-center gap-2.5">
+
+                {% if request.user.is_authenticated %}
+                <!-- Profile Link -->
+                <a href="{% url 'profile' %}" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-700 hover:bg-zinc-200/70 transition-all">
+                    <i data-lucide="user-circle" class="w-3.5 h-3.5 text-zinc-500"></i>
+                    <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                </a>
+
+                <!-- Logout URL Button -->
+                <a href="{% url 'logout' %}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-all" title="{{ t.logout|default:'Выйти' }}">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">{{ t.logout|default:"Выйти" }}</span>
+                </a>
+                {% endif %}
+
+                <!-- Language Switcher: RU | UZ (Latin) | ЎЗ (Cyrillic) -->
+                <div class="inline-flex rounded-lg bg-zinc-100 p-1 border border-zinc-200 text-xs font-medium">
+                    <a href="?lang=ru" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'ru' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">RU</a>
+                    <a href="?lang=uz_lat" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_lat' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">UZ</a>
+                    <a href="?lang=uz_cyr" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_cyr' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">ЎЗ</a>
+                </div>
+
             </div>
         </div>
         <h1 class="text-3xl font-bold tracking-tight text-zinc-900">{{ t.header_title }}</h1>
