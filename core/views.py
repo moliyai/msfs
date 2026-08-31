@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 
 # Import your newly created models
-from .models import VerificationItem, VerificationReport
+# from .models import VerificationItem, VerificationReport
 # Import TRANSLATIONS
 from .translations import TRANSLATIONS
 
@@ -284,21 +284,21 @@ def evaluate_katm(katm_data, t):
     return results
 
 
-def save_verification_history(pinfl, req_type, results):
-    """Helper function to save report and items into database"""
-    if not results:
-        return
-    report = VerificationReport.objects.create(pinfl=pinfl, check_type=req_type)
-    items_to_create = [
-        VerificationItem(
-            report=report,
-            title=res["key"],
-            value_display=str(res["value"]),
-            status=res["status"],
-        )
-        for res in results
-    ]
-    VerificationItem.objects.bulk_create(items_to_create)
+# def save_verification_history(pinfl, req_type, results):
+#     """Helper function to save report and items into database"""
+#     if not results:
+#         return
+#     report = VerificationReport.objects.create(pinfl=pinfl, check_type=req_type)
+#     items_to_create = [
+#         VerificationItem(
+#             report=report,
+#             title=res["key"],
+#             value_display=str(res["value"]),
+#             status=res["status"],
+#         )
+#         for res in results
+#     ]
+#     VerificationItem.objects.bulk_create(items_to_create)
 
 
 def main(request):
@@ -332,7 +332,7 @@ def main(request):
                 try:
                     results = evaluate_mib(pinfl, t)
                     context["results"] = results
-                    save_verification_history(pinfl, req_type, results)
+                    # save_verification_history(pinfl, req_type, results)
                 except Exception as e:
                     context["error"] = f"{t['err_mib_prefix']}{str(e)}"
 
@@ -357,45 +357,45 @@ def main(request):
                         mib_results = evaluate_mib(str(pinfl), t)
                         results = katm_results + mib_results
                         context["results"] = results
-                        save_verification_history(str(pinfl), req_type, results)
+                        # save_verification_history(str(pinfl), req_type, results)
                 except Exception as e:
                     context["error"] = f"{t['err_katm_prefix']}{str(e)}"
 
     return render(request, "main.html", context)
 
 
-@login_not_required
-class CustomLoginView(LoginView):
-    template_name = "login.html"
-    redirect_authenticated_user = True
+# @login_not_required
+# class CustomLoginView(LoginView):
+#     template_name = "login.html"
+#     redirect_authenticated_user = True
 
 
-def profile(request):
-    lang = request.GET.get("lang") or "ru"
-    if lang not in TRANSLATIONS:
-        lang = "ru"
+# def profile(request):
+#     lang = request.GET.get("lang") or "ru"
+#     if lang not in TRANSLATIONS:
+#         lang = "ru"
 
-    t = TRANSLATIONS[lang]
+#     t = TRANSLATIONS[lang]
 
-    # Fetch user's reports history ordered by newest first
-    reports_list = (
-        VerificationReport.objects.prefetch_related("items")
-        .all()
-        .order_by("-created_at")
-    )
+#     # Fetch user's reports history ordered by newest first
+#     reports_list = (
+#         VerificationReport.objects.prefetch_related("items")
+#         .all()
+#         .order_by("-created_at")
+#     )
 
-    # Setup pagination: 10 reports per page
-    paginator = Paginator(reports_list, 10)
-    page_number = request.GET.get("page")
-    reports = paginator.get_page(page_number)
+#     # Setup pagination: 10 reports per page
+#     paginator = Paginator(reports_list, 10)
+#     page_number = request.GET.get("page")
+#     reports = paginator.get_page(page_number)
 
-    context = {
-        "t": t,
-        "lang": lang,
-        "reports": reports,  # Page object containing the reports
-    }
+#     context = {
+#         "t": t,
+#         "lang": lang,
+#         "reports": reports,  # Page object containing the reports
+#     }
 
-    return render(request, "profile.html", context)
+#     return render(request, "profile.html", context)
 
 
 def score(request):
@@ -488,11 +488,3 @@ def score(request):
             return render(request, 'score.html', {'error': f"Непредвиденная ошибка: {e}"})
 
         return render(request, 'score.html', {'data': data})
-
-
-def score_response(request):
-    context = {
-        "score": 0.78,
-        "decisiion": "Approve"
-    }
-    return render(request, "")
