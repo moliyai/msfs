@@ -389,9 +389,6 @@
                 }
             });
 
-            // ВРЕМЕННЫЙ ОТЛАДОЧНЫЙ ЛОГ — уберите, когда убедитесь, что фильтрация работает.
-            console.log('[dropdown] запрос:', url.toString());
-
             const res = await fetch(url.toString(), {
                 headers: {
                     'Accept': 'application/json',
@@ -404,12 +401,10 @@
             }
 
             const data = await res.json();
-            console.log('[dropdown] ответ для ' + path + ':\n' + JSON.stringify(data, null, 2));
             if (Array.isArray(data)) return data;
             if (Array.isArray(data.data)) return data.data;
             if (Array.isArray(data.results)) return data.results;
             if (Array.isArray(data.items)) return data.items;
-            console.warn(`Неожиданный формат ответа для ${path}:`, data);
             return [];
         }
 
