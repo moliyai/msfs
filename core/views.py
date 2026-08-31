@@ -478,7 +478,7 @@ def score(request):
             if prediction is None:
                 return render(request, 'score.html', {'error': f"Unexpected response format: {resp_json}"})
 
-            return render(request, 'score.html', {'data': prediction})
+            return render(request, 'score.html', {'data': prediction, 'period': payload.get('loan_period'), 'amount': payload.get('quantity') * payload.get('product_price')})
 
         except requests.exceptions.Timeout:
             return render(request, 'score.html', {'error': "Время ожидания ответа от сервера скоринга истекло (Timeout)."})
@@ -486,5 +486,3 @@ def score(request):
             return render(request, 'score.html', {'error': f"Ошибка соединения с сервисом скоринга: {e}"})
         except Exception as e:
             return render(request, 'score.html', {'error': f"Непредвиденная ошибка: {e}"})
-
-        return render(request, 'score.html', {'data': data})

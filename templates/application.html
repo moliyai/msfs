@@ -81,16 +81,15 @@
                     <!-- Тип клиента: dropdown, fill (из БД) -->
                     <div class="space-y-1.5">
                         <label for="client_type" class="text-xs font-semibold text-zinc-700">{{ t.field_client_type|default:"Тип клиента" }}</label>
-                        <select id="client_type" name="client_type" data-source="client_types" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="client_type" name="client_type" required data-source="client_types" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
-                            <!-- values ожидаются из БД: eski / yangi -->
                         </select>
                     </div>
 
                     <!-- Пол: заполняется пользователем -->
                     <div class="space-y-1.5">
                         <label for="gender" class="text-xs font-semibold text-zinc-700">{{ t.field_gender|default:"Пол" }}</label>
-                        <select id="gender" name="gender" data-source="genders" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="gender" name="gender" required data-source="genders" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                         </select>
                     </div>
@@ -102,9 +101,11 @@
                             type="date"
                             id="birth_date"
                             name="birth_date"
-                            value="{{ client_birth_date|default:'' }}"
-                            class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            required
+                            value="{% if client_birth_date %}{{ client_birth_date }}{% endif %}"
+                            class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 user-invalid:border-red-500 user-invalid:text-red-600 focus:user-invalid:ring-red-500"
                         />
+                        <script>(el => { const d = new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]; el.max = d; if(!el.value) el.value = d; })(document.getElementById('birth_date'));</script>
                     </div>
 
                     <!-- Работа: dropdown с поиском (autocomplete по /api/jobs?query=) -->
@@ -114,6 +115,7 @@
                             <input
                                 type="text"
                                 id="job_search"
+                                required
                                 autocomplete="off"
                                 placeholder="{{ t.job_search_placeholder|default:'Начните вводить, например: уста' }}"
                                 class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
@@ -140,7 +142,7 @@
                     <!-- Категория: dropdown, fill (из БД) -->
                     <div class="space-y-1.5">
                         <label for="category" class="text-xs font-semibold text-zinc-700">{{ t.field_category|default:"Категория" }}</label>
-                        <select id="category" name="category" data-source="categories" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="category" name="category" required data-source="categories" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                         </select>
                     </div>
@@ -148,7 +150,7 @@
                     <!-- Подкатегория: dropdown, fill, зависит от категории -->
                     <div class="space-y-1.5">
                         <label for="subcategory" class="text-xs font-semibold text-zinc-700">{{ t.field_subcategory|default:"Подкатегория" }}</label>
-                        <select id="subcategory" name="subcategory" data-source="subcategories" data-depends-on="category" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                        <select id="subcategory" name="subcategory" required data-source="subcategories" data-depends-on="category" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                         </select>
                     </div>
@@ -156,7 +158,7 @@
                     <!-- Бренд: dropdown, fill (из БД), зависит от подкатегории -->
                     <div class="space-y-1.5">
                         <label for="brand" class="text-xs font-semibold text-zinc-700">{{ t.field_brand|default:"Бренд" }}</label>
-                        <select id="brand" name="brand" data-source="brands" data-depends-on="subcategory" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                        <select id="brand" name="brand" required data-source="brands" data-depends-on="subcategory" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
                             <option value="" selected>{{ t.select_subcategory_first|default:"Сначала выберите подкатегорию" }}</option>
                         </select>
                     </div>
@@ -166,16 +168,21 @@
                         <div class="space-y-1.5">
                             <label for="price" class="text-xs font-semibold text-zinc-700">{{ t.field_price|default:"Цена товара" }}</label>
                             <input
-                                type="number" min="0" step="1" inputmode="numeric"
-                                id="price" name="price" placeholder="0"
-                                class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                                type="text"
+                                inputmode="numeric"
+                                required
+                                id="price"
+                                name="price"
+                                placeholder="0"
+                                oninput="this.value = this.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')"
+                                class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all user-invalid:border-red-500"
                             />
                         </div>
                         <!-- Количество -->
                         <div class="space-y-1.5">
                             <label for="quantity" class="text-xs font-semibold text-zinc-700">{{ t.field_quantity|default:"Количество" }}</label>
                             <input
-                                type="number" min="1" step="1" inputmode="numeric"
+                                type="number" min="1" step="1" inputmode="numeric" required
                                 id="quantity" name="quantity" placeholder="1" value="1"
                                 class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
                             />
@@ -186,8 +193,8 @@
                     <div class="space-y-1.5">
                         <label for="rate_percent" class="text-xs font-semibold text-zinc-700">{{ t.field_rate|default:"Процентная ставка" }} (% {{ t.per_month|default:"в месяц" }})</label>
                         <input
-                            type="number" min="0" step="0.01" inputmode="decimal"
-                            id="rate_percent" name="rate_percent" placeholder="0.00"
+                            type="number" min="0" step="0.01" inputmode="decimal" required
+                            id="rate_percent" name="rate_percent" placeholder="0.00" value="3.3"
                             class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
                         />
                     </div>
@@ -205,7 +212,7 @@
                     <!-- Регион: dropdown, fill (из БД) -->
                     <div class="space-y-1.5">
                         <label for="region" class="text-xs font-semibold text-zinc-700">{{ t.field_region|default:"Регион" }}</label>
-                        <select id="region" name="region" data-source="regions" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="region" name="region" required data-source="regions" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                         </select>
                     </div>
@@ -213,7 +220,7 @@
                     <!-- Источник дохода: dropdown, fill (из БД) -->
                     <div class="space-y-1.5">
                         <label for="income_source" class="text-xs font-semibold text-zinc-700">{{ t.field_income_source|default:"Источник дохода" }}</label>
-                        <select id="income_source" name="income_source" data-source="income_sources" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="income_source" name="income_source" required data-source="income_sources" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                         </select>
                     </div>
@@ -221,7 +228,7 @@
                     <!-- МФЙ название: dropdown, fill (из БД), зависит от выбранного региона -->
                     <div class="space-y-1.5">
                         <label for="mfi_name" class="text-xs font-semibold text-zinc-700">{{ t.field_mfi_name|default:"МФЙ название" }}</label>
-                        <select id="mfi_name" name="mfi_name" data-source="mfi_list" data-depends-on="region" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                        <select id="mfi_name" name="mfi_name" required data-source="mfi_list" data-depends-on="region" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
                             <option value="" selected>{{ t.select_region_first|default:"Сначала выберите регион" }}</option>
                         </select>
                     </div>
@@ -241,14 +248,14 @@
                         <label for="pinfl_final" class="text-xs font-semibold text-zinc-700">{{ t.field_pinfl|default:"ПИНФЛ" }}</label>
                         <input
                             type="text" id="pinfl_final" name="pinfl" value="{{ pinfl_val|default:'' }}"
-                            readonly class="w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-mono text-zinc-700 cursor-not-allowed"
+                            required readonly class="w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-mono text-zinc-700 cursor-not-allowed"
                         />
                     </div>
 
                     <!-- Срок договора: dropdown, захардкожен пока нет API (3/6/9/12 месяцев) -->
                     <div class="space-y-1.5">
                         <label for="term_months" class="text-xs font-semibold text-zinc-700">{{ t.field_term|default:"Срок договора" }}</label>
-                        <select id="term_months" name="term_months" class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                        <select id="term_months" name="term_months" required class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
                             <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
                             <option value="3">3 месяца</option>
                             <option value="6">6 месяцев</option>
@@ -261,9 +268,14 @@
                     <div class="space-y-1.5">
                         <label for="initial_payment" class="text-xs font-semibold text-zinc-700">{{ t.field_initial_payment|default:"Первоначальный взнос" }}</label>
                         <input
-                            type="number" min="0" step="1" inputmode="numeric"
-                            id="initial_payment" name="initial_payment" placeholder="0"
-                            class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            type="text"
+                            inputmode="numeric"
+                            required
+                            id="initial_payment"
+                            name="initial_payment"
+                            placeholder="0"
+                            oninput="this.value = this.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')"
+                            class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all user-invalid:border-red-500"
                         />
                     </div>
 
@@ -278,13 +290,18 @@
                             {% endif %}
                         </div>
                         <input
-                            type="number" min="0" step="1" inputmode="numeric"
-                            id="monthly_income" name="monthly_income"
+                            type="text"
+                            inputmode="numeric"
+                            required
+                            id="monthly_income"
+                            name="monthly_income"
                             value="{{ katm_salary|default:'' }}"
                             placeholder="0"
                             {% if katm_income_official %}readonly{% endif %}
-                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            oninput="this.value = this.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')"
+                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all user-invalid:border-red-500"
                         />
+                        <script>(el => { if(el.value) el.value = el.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' '); })(document.getElementById('monthly_income'));</script>
                     </div>
 
                     <!-- Дополнительный доход: авто с КАТМ, если официальный, иначе вручную или 0 -->
@@ -298,13 +315,18 @@
                             {% endif %}
                         </div>
                         <input
-                            type="number" min="0" step="1" inputmode="numeric"
-                            id="additional_income" name="additional_income"
+                            type="text"
+                            inputmode="numeric"
+                            required
+                            id="additional_income"
+                            name="additional_income"
                             value="{{ katm_additional_income|default:'0' }}"
                             placeholder="0"
                             {% if katm_additional_income_official %}readonly{% endif %}
-                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_additional_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            oninput="this.value = this.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ')"
+                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_additional_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all user-invalid:border-red-500"
                         />
+                        <script>(el => { if(el.value) el.value = el.value.replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' '); })(document.getElementById('additional_income'));</script>
                     </div>
 
                     <!-- Ежемесячный платёж: расчётное поле -->
@@ -580,11 +602,11 @@
         }
 
         function calculateMonthlyPayment() {
-            const price = parseFloat(document.getElementById('price').value) || 0;
-            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
-            const ratePercent = parseFloat(document.getElementById('rate_percent').value) || 0;
-            const initialPayment = parseFloat(document.getElementById('initial_payment').value) || 0;
-            const termMonths = parseInt(document.getElementById('term_months').value) || 0;
+            const price = parseFloat(document.getElementById('price').value.replace(/\s/g, '')) || 0;
+            const quantity = parseFloat(document.getElementById('quantity').value.replace(/\s/g, '')) || 0;
+            const ratePercent = parseFloat(document.getElementById('rate_percent').value.replace(/\s/g, '')) || 0;
+            const initialPayment = parseFloat(document.getElementById('initial_payment').value.replace(/\s/g, '')) || 0;
+            const termMonths = parseInt(document.getElementById('term_months').value.replace(/\s/g, '')) || 0;
 
             const totalPrice = price * quantity;
             const financedAmount = Math.max(totalPrice - initialPayment, 0);
