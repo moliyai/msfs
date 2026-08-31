@@ -179,6 +179,30 @@
 
         </div>
 
+        <!-- Explanation & SHAP Image Card -->
+        {% if data.explanation or data.imageUrl %}
+        <div class="rounded-xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+            <div class="flex items-center gap-2 border-b border-zinc-100 pb-3">
+                <i data-lucide="info" class="w-4 h-4 text-zinc-500"></i>
+                <h3 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Объяснение решения</h3>
+            </div>
+
+            {% if data.imageUrl %}
+            <div class="rounded-lg p-2 flex justify-center overflow-hidden">
+                <a href="{{ data.imageUrl }}" target="_blank" title="Открыть в полном размере" class="block w-full">
+                    <img src="{{ data.imageUrl }}" alt="SHAP Explanation" class="w-3/4 h-auto object-contain rounded hover:opacity-95 transition-opacity" />
+                </a>
+            </div>
+            {% endif %}
+
+            {% if data.explanation %}
+            <div class="p-3 rounded-lg bg-zinc-50 border border-zinc-100 text-[11px] font-mono text-zinc-600 whitespace-pre-line leading-relaxed">
+                {{ data.explanation }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Actions -->
         <div class="flex items-center justify-between pt-2">
             <button

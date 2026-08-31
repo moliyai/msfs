@@ -9,14 +9,20 @@ from django.shortcuts import redirect
 import requests
 import json
 from datetime import datetime
+import os
 
 # Import your newly created models
 # from .models import VerificationItem, VerificationReport
 # Import TRANSLATIONS
 from .translations import TRANSLATIONS
 
-MIB_URL = "http://91.90.216.68:9012"
-KATM_URL = "http://91.90.216.68:9013"
+MIB_URL = os.getenv("MIB_URL")
+KATM_URL = os.getenv("KATM_URL")
+SCORING_API_URL = os.getenv("SCORING_API_URL")
+
+# API Credentials
+SCORING_API_USERNAME = os.getenv("SCORING_API_USERNAME")
+SCORING_API_PASSWORD = os.getenv("SCORING_API_PASSWORD")
 
 _MISSING = object()
 
@@ -451,13 +457,11 @@ def score(request):
             "monthly_income": f('monthly_income'),
         }
 
-        url = "https://barakasavdo.moliy.ai/api/predict"
-
         try:
             res = requests.post(
-                url,
+                SCORING_API_URL,
                 data=payload,
-                auth=("filial3admin", "GE11w6sFNsJ5"),
+                auth=(SCORING_API_USERNAME, SCORING_API_PASSWORD),
                 timeout=30
             )
 
