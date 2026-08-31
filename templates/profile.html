@@ -95,13 +95,20 @@
                                     PINFL: {{ report.pinfl }}
                                 </span>
                             </div>
-                            <span class="text-xs text-zinc-400">
-                                {{ report.created_at|date:"d.m.Y H:i" }}
-                            </span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs text-zinc-400">
+                                    {{ report.created_at|date:"d.m.Y H:i" }}
+                                </span>
+                                <!-- Hide/Show Button -->
+                                <button onclick="toggleExtraData('extra-data-{{ report.id }}', this)" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white border border-zinc-200 text-xs font-medium text-zinc-700 hover:bg-zinc-100 transition-all shadow-sm">
+                                    <span class="btn-text">Подробнее</span>
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 transition-transform duration-200 chevron-icon"></i>
+                                </button>
+                            </div>
                         </div>
 
-                        <!-- Results Items List -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                        <!-- Results Items List (Hidden by default) -->
+                        <div id="extra-data-{{ report.id }}" class="hidden grid-cols-1 sm:grid-cols-2 gap-2 mt-3 pt-2">
                             {% for item in report.items.all %}
                             <div class="flex items-center justify-between p-2 rounded bg-white border border-zinc-200/60 text-xs">
                                 <div class="truncate pr-2">
@@ -173,6 +180,24 @@
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
         });
+
+        function toggleExtraData(elementId, button) {
+            const element = document.getElementById(elementId);
+            const btnText = button.querySelector('.btn-text');
+            const icon = button.querySelector('.chevron-icon');
+
+            if (element.classList.contains('hidden')) {
+                element.classList.remove('hidden');
+                element.classList.add('grid'); // matches Tailwind grid setup
+                btnText.textContent = 'Скрыть';
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                element.classList.add('hidden');
+                element.classList.remove('grid');
+                btnText.textContent = 'Подробнее';
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
     </script>
 </body>
 </html>
