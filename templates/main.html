@@ -250,6 +250,14 @@
                         </div>
                         {% endfor %}
                     </div>
+
+                    <!-- Score Button -->
+                    <div class="mt-6 flex justify-end">
+                        <a href="{% url 'score' %}?pinfl={{ pinfl_val }}" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition-colors shadow-sm">
+                            <i data-lucide="gauge" class="w-3.5 h-3.5"></i>
+                            <span>Score</span>
+                        </a>
+                    </div>
                 {% else %}
                     <!-- Empty State -->
                     <div class="my-auto py-16 text-center flex flex-col items-center justify-center">

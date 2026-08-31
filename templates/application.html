@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="{{ t.lang_code }}" class="h-full bg-zinc-50 antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ t.app_doc_title|default:"Заявка" }}</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-full flex flex-col items-center justify-start p-4 sm:p-8 text-zinc-950">
+
+    <!-- Header -->
+    <header class="w-full max-w-5xl mb-8">
+        <div class="flex items-center justify-between gap-4 mb-3 flex-wrap">
+            <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-600">
+                <i data-lucide="file-edit" class="w-3.5 h-3.5 text-zinc-800"></i> {{ t.app_badge|default:"Заявка на рассрочку" }}
+            </div>
+
+            <div class="flex items-center gap-2.5">
+                {% if request.user.is_authenticated %}
+                <a href="{% url 'profile' %}" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-zinc-100 border border-zinc-200 text-xs font-medium text-zinc-700 hover:bg-zinc-200/70 transition-all">
+                    <i data-lucide="user-circle" class="w-3.5 h-3.5 text-zinc-500"></i>
+                    <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                </a>
+                <a href="{% url 'logout' %}" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 border border-rose-200 text-xs font-medium text-rose-700 hover:bg-rose-100 transition-all" title="{{ t.logout|default:'Выйти' }}">
+                    <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">{{ t.logout|default:"Выйти" }}</span>
+                </a>
+                {% endif %}
+
+                <div class="inline-flex rounded-lg bg-zinc-100 p-1 border border-zinc-200 text-xs font-medium">
+                    <a href="?lang=ru" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'ru' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">RU</a>
+                    <a href="?lang=uz_lat" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_lat' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">UZ</a>
+                    <a href="?lang=uz_cyr" class="px-2.5 py-1 rounded-md transition-all {% if lang == 'uz_cyr' %}bg-white shadow-sm font-semibold text-zinc-900{% else %}text-zinc-500 hover:text-zinc-900{% endif %}">ЎЗ</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div>
+                <h1 class="text-3xl font-bold tracking-tight text-zinc-900">{{ t.app_header_title|default:"Оформление заявки" }}</h1>
+                <p class="text-sm text-zinc-500 mt-1">{{ t.app_header_subtitle|default:"Заполните данные по клиенту и товару" }}</p>
+            </div>
+            <!-- Step indicator -->
+            <div class="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-200 text-zinc-600">1</span>
+                <span class="w-6 h-px bg-zinc-300"></span>
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-zinc-900 text-white font-semibold">2</span>
+                <span class="ml-1">{{ t.step_2_label|default:"Анкета" }}</span>
+            </div>
+        </div>
+    </header>
+
+    {% if error %}
+    <div class="w-full max-w-5xl mb-6 p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-sm flex items-center gap-3">
+        <i data-lucide="alert-circle" class="w-5 h-5 text-rose-600 flex-shrink-0"></i>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form id="application-form" method="POST" action="{% url 'score' %}" class="w-full max-w-5xl space-y-6">
+        {% csrf_token %}
+        <input type="hidden" name="lang" value="{{ lang }}">
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <!-- Информация о клиенте -->
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-5">
+                    <i data-lucide="user" class="w-4 h-4 text-zinc-400"></i>
+                    <h2 class="text-sm font-semibold text-zinc-900">{{ t.section_client|default:"Информация о клиенте" }}</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Тип клиента: dropdown, fill (из БД) -->
+                    <div class="space-y-1.5">
+                        <label for="client_type" class="text-xs font-semibold text-zinc-700">{{ t.field_client_type|default:"Тип клиента" }}</label>
+                        <select id="client_type" name="client_type" data-source="client_types" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                            <!-- values ожидаются из БД: eski / yangi -->
+                        </select>
+                    </div>
+
+                    <!-- Пол: заполняется пользователем -->
+                    <div class="space-y-1.5">
+                        <label for="gender" class="text-xs font-semibold text-zinc-700">{{ t.field_gender|default:"Пол" }}</label>
+                        <select id="gender" name="gender" data-source="genders" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Дата рождения: заполняется пользователем -->
+                    <div class="space-y-1.5">
+                        <label for="birth_date" class="text-xs font-semibold text-zinc-700">{{ t.field_birth_date|default:"Дата рождения" }}</label>
+                        <input
+                            type="date"
+                            id="birth_date"
+                            name="birth_date"
+                            value="{{ client_birth_date|default:'' }}"
+                            class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                        />
+                    </div>
+
+                    <!-- Работа: dropdown с поиском (autocomplete по /api/jobs?query=) -->
+                    <div class="space-y-1.5 relative">
+                        <label for="job_search" class="text-xs font-semibold text-zinc-700">{{ t.field_job|default:"Работа" }}</label>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="job_search"
+                                autocomplete="off"
+                                placeholder="{{ t.job_search_placeholder|default:'Начните вводить, например: уста' }}"
+                                class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            />
+                            <!-- Реальное значение, которое уходит в форму -->
+                            <input type="hidden" id="job" name="job" value="">
+                            <div
+                                id="job_suggestions"
+                                class="hidden absolute z-10 mt-1 w-full max-h-56 overflow-y-auto rounded-md border border-zinc-200 bg-white shadow-lg text-sm"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Информация о товаре -->
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-5">
+                    <i data-lucide="package" class="w-4 h-4 text-zinc-400"></i>
+                    <h2 class="text-sm font-semibold text-zinc-900">{{ t.section_product|default:"Информация о товаре" }}</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Категория: dropdown, fill (из БД) -->
+                    <div class="space-y-1.5">
+                        <label for="category" class="text-xs font-semibold text-zinc-700">{{ t.field_category|default:"Категория" }}</label>
+                        <select id="category" name="category" data-source="categories" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Подкатегория: dropdown, fill, зависит от категории -->
+                    <div class="space-y-1.5">
+                        <label for="subcategory" class="text-xs font-semibold text-zinc-700">{{ t.field_subcategory|default:"Подкатегория" }}</label>
+                        <select id="subcategory" name="subcategory" data-source="subcategories" data-depends-on="category" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Бренд: dropdown, fill (из БД), зависит от подкатегории -->
+                    <div class="space-y-1.5">
+                        <label for="brand" class="text-xs font-semibold text-zinc-700">{{ t.field_brand|default:"Бренд" }}</label>
+                        <select id="brand" name="brand" data-source="brands" data-depends-on="subcategory" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                            <option value="" selected>{{ t.select_subcategory_first|default:"Сначала выберите подкатегорию" }}</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Цена товара -->
+                        <div class="space-y-1.5">
+                            <label for="price" class="text-xs font-semibold text-zinc-700">{{ t.field_price|default:"Цена товара" }}</label>
+                            <input
+                                type="number" min="0" step="1" inputmode="numeric"
+                                id="price" name="price" placeholder="0"
+                                class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            />
+                        </div>
+                        <!-- Количество -->
+                        <div class="space-y-1.5">
+                            <label for="quantity" class="text-xs font-semibold text-zinc-700">{{ t.field_quantity|default:"Количество" }}</label>
+                            <input
+                                type="number" min="1" step="1" inputmode="numeric"
+                                id="quantity" name="quantity" placeholder="1" value="1"
+                                class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                            />
+                        </div>
+                    </div>
+
+                    <!-- Процентная ставка -->
+                    <div class="space-y-1.5">
+                        <label for="rate_percent" class="text-xs font-semibold text-zinc-700">{{ t.field_rate|default:"Процентная ставка" }} (% {{ t.per_month|default:"в месяц" }})</label>
+                        <input
+                            type="number" min="0" step="0.01" inputmode="decimal"
+                            id="rate_percent" name="rate_percent" placeholder="0.00"
+                            class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Регион и источник дохода -->
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-5">
+                    <i data-lucide="map-pin" class="w-4 h-4 text-zinc-400"></i>
+                    <h2 class="text-sm font-semibold text-zinc-900">{{ t.section_region|default:"Регион и источник дохода" }}</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Регион: dropdown, fill (из БД) -->
+                    <div class="space-y-1.5">
+                        <label for="region" class="text-xs font-semibold text-zinc-700">{{ t.field_region|default:"Регион" }}</label>
+                        <select id="region" name="region" data-source="regions" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                        </select>
+                    </div>
+
+                    <!-- Источник дохода: dropdown, fill (из БД) -->
+                    <div class="space-y-1.5">
+                        <label for="income_source" class="text-xs font-semibold text-zinc-700">{{ t.field_income_source|default:"Источник дохода" }}</label>
+                        <select id="income_source" name="income_source" data-source="income_sources" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                        </select>
+                    </div>
+
+                    <!-- МФЙ название: dropdown, fill (из БД), зависит от выбранного региона -->
+                    <div class="space-y-1.5">
+                        <label for="mfi_name" class="text-xs font-semibold text-zinc-700">{{ t.field_mfi_name|default:"МФЙ название" }}</label>
+                        <select id="mfi_name" name="mfi_name" data-source="mfi_list" data-depends-on="region" class="w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all disabled:bg-zinc-50 disabled:text-zinc-400" disabled>
+                            <option value="" selected>{{ t.select_region_first|default:"Сначала выберите регион" }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Итоги -->
+            <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                <div class="flex items-center gap-2 mb-5">
+                    <i data-lucide="clipboard-list" class="w-4 h-4 text-zinc-400"></i>
+                    <h2 class="text-sm font-semibold text-zinc-900">{{ t.section_summary|default:"Итоги" }}</h2>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- ПИНФЛ: pulled, автозаполняется -->
+                    <div class="space-y-1.5">
+                        <label for="pinfl_final" class="text-xs font-semibold text-zinc-700">{{ t.field_pinfl|default:"ПИНФЛ" }}</label>
+                        <input
+                            type="text" id="pinfl_final" name="pinfl" value="{{ pinfl_val|default:'' }}"
+                            readonly class="w-full rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm font-mono text-zinc-700 cursor-not-allowed"
+                        />
+                    </div>
+
+                    <!-- Срок договора: dropdown, захардкожен пока нет API (3/6/9/12 месяцев) -->
+                    <div class="space-y-1.5">
+                        <label for="term_months" class="text-xs font-semibold text-zinc-700">{{ t.field_term|default:"Срок договора" }}</label>
+                        <select id="term_months" name="term_months" class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all">
+                            <option value="" selected>{{ t.select_placeholder|default:"Выберите..." }}</option>
+                            <option value="3">3 месяца</option>
+                            <option value="6">6 месяцев</option>
+                            <option value="9">9 месяцев</option>
+                            <option value="12">12 месяцев</option>
+                        </select>
+                    </div>
+
+                    <!-- Первоначальный взнос -->
+                    <div class="space-y-1.5">
+                        <label for="initial_payment" class="text-xs font-semibold text-zinc-700">{{ t.field_initial_payment|default:"Первоначальный взнос" }}</label>
+                        <input
+                            type="number" min="0" step="1" inputmode="numeric"
+                            id="initial_payment" name="initial_payment" placeholder="0"
+                            class="calc-input w-full rounded-md border border-zinc-200 bg-white px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                        />
+                    </div>
+
+                    <!-- Ежемесячный доход: авто с КАТМ, если официальный, иначе вручную -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label for="monthly_income" class="text-xs font-semibold text-zinc-700">{{ t.field_monthly_income|default:"Ежемесячный доход (Зарплата)" }}</label>
+                            {% if katm_income_official %}
+                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                <i data-lucide="check" class="w-3 h-3"></i>{{ t.auto_from_katm|default:"автоматически (КАТМ)" }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <input
+                            type="number" min="0" step="1" inputmode="numeric"
+                            id="monthly_income" name="monthly_income"
+                            value="{{ katm_salary|default:'' }}"
+                            placeholder="0"
+                            {% if katm_income_official %}readonly{% endif %}
+                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                        />
+                    </div>
+
+                    <!-- Дополнительный доход: авто с КАТМ, если официальный, иначе вручную или 0 -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <label for="additional_income" class="text-xs font-semibold text-zinc-700">{{ t.field_additional_income|default:"Дополнительный доход" }}</label>
+                            {% if katm_additional_income_official %}
+                            <span class="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                <i data-lucide="check" class="w-3 h-3"></i>{{ t.auto_from_katm|default:"автоматически (КАТМ)" }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        <input
+                            type="number" min="0" step="1" inputmode="numeric"
+                            id="additional_income" name="additional_income"
+                            value="{{ katm_additional_income|default:'0' }}"
+                            placeholder="0"
+                            {% if katm_additional_income_official %}readonly{% endif %}
+                            class="calc-input w-full rounded-md border border-zinc-200 {% if katm_additional_income_official %}bg-zinc-50 text-zinc-700 cursor-not-allowed{% else %}bg-white{% endif %} px-3 py-2.5 text-sm placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-1 transition-all"
+                        />
+                    </div>
+
+                    <!-- Ежемесячный платёж: расчётное поле -->
+                    <div class="space-y-1.5 pt-1">
+                        <label for="monthly_payment" class="text-xs font-semibold text-zinc-700">{{ t.field_monthly_payment|default:"Ежемесячный платёж" }}</label>
+                        <input
+                            type="text" id="monthly_payment" name="monthly_payment"
+                            value="0" readonly
+                            class="w-full rounded-md border border-zinc-200 bg-zinc-100 px-3 py-2.5 text-sm font-mono font-semibold text-zinc-900 cursor-not-allowed"
+                        />
+                        <p class="text-[11px] text-zinc-500">{{ t.monthly_payment_hint|default:"Рассчитывается автоматически" }}</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-between pt-2">
+            <a
+                href="{% url 'main' %}"
+                class="inline-flex items-center justify-center rounded-md border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-600 shadow-sm hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2"
+            >
+                <i data-lucide="arrow-left" class="w-4 h-4 mr-2 text-zinc-400"></i>
+                {{ t.back|default:"Назад" }}
+            </a>
+
+            <button
+                type="submit"
+                class="inline-flex items-center justify-center rounded-md bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white shadow hover:bg-zinc-800 transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 cursor-pointer"
+            >
+                <i data-lucide="check-circle" class="w-4 h-4 mr-2"></i>
+                {{ t.submit_application|default:"Отправить заявку" }}
+            </button>
+        </div>
+    </form>
+
+    <script>
+        // ---------------------------------------------------------------
+        // Подключение справочников к API barakasavdo.moliy.ai
+        // ---------------------------------------------------------------
+        const API_BASE = 'https://barakasavdo.moliy.ai';
+
+        // Пути справочников.
+        // ВАЖНО: mfy-name / subcategories / brands фильтруются НЕ по id родителя,
+        // а текстовым поиском через параметр "query" (проверено curl'ом из Swagger) —
+        // так же, как /api/jobs. Поэтому в query подставляется НАЗВАНИЕ выбранного
+        // родительского пункта (регион / категория / подкатегория), а не его id.
+        const DROPDOWN_ENDPOINTS = {
+            client_type:    '/api/get-client-type',
+            gender:         '/api/get-gender',
+            job:            '/api/jobs',            // поиск по query
+            category:       '/api/categories',
+            subcategory:    '/api/subcategories',   // поиск по query = название категории
+            brand:          '/api/brands',          // поиск по query = название подкатегории
+            region:         '/api/regions',
+            income_source:  '/api/income-source',
+            mfi_name:       '/api/mfy-name',        // поиск по query = название региона
+            // Не используется в этой форме, но доступен на бэке при необходимости:
+            // model_names: '/api/get-model-names'
+        };
+
+        // Достаёт массив элементов справочника из ответа API вне зависимости
+        // от того, обёрнут он в {data: [...]}, {results: [...]}, {items: [...]}
+        // или пришёл как обычный массив.
+        async function fetchDropdownData(path, params = {}) {
+            const url = new URL(API_BASE + path);
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    url.searchParams.set(key, value);
+                }
+            });
+
+            // ВРЕМЕННЫЙ ОТЛАДОЧНЫЙ ЛОГ — уберите, когда убедитесь, что фильтрация работает.
+            console.log('[dropdown] запрос:', url.toString());
+
+            const res = await fetch(url.toString(), {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Basic ${btoa('filial3admin:GE11w6sFNsJ5')}`
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error(`Ошибка загрузки ${path}: ${res.status}`);
+            }
+
+            const data = await res.json();
+            console.log('[dropdown] ответ для ' + path + ':\n' + JSON.stringify(data, null, 2));
+            if (Array.isArray(data)) return data;
+            if (Array.isArray(data.data)) return data.data;
+            if (Array.isArray(data.results)) return data.results;
+            if (Array.isArray(data.items)) return data.items;
+            console.warn(`Неожиданный формат ответа для ${path}:`, data);
+            return [];
+        }
+
+        // Заполняет <select>, сохраняя первую option-заглушку "Выберите...".
+        // Автоматически подхватывает id/value/code как value и name/title/label как текст.
+        function populateSelect(select, items) {
+            const placeholder = select.querySelector('option[value=""]');
+            select.innerHTML = '';
+            select.appendChild(placeholder || Object.assign(document.createElement('option'), { value: '', textContent: 'Выберите...' }));
+
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                if (typeof item === 'object' && item !== null) {
+                    opt.value = item.id ?? item.value ?? item.code ?? item.key ?? '';
+                    opt.textContent = item.name ?? item.title ?? item.label ?? String(opt.value);
+                } else {
+                    opt.value = item;
+                    opt.textContent = item;
+                }
+                select.appendChild(opt);
+            });
+        }
+
+        async function loadDropdown(selectId, path, params) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            try {
+                const items = await fetchDropdownData(path, params);
+                populateSelect(select, items);
+            } catch (err) {
+                console.error(err);
+                select.innerHTML = '<option value="">Ошибка загрузки</option>';
+            }
+        }
+
+        // Текст выбранного <option> (а не его value/id) — эти API фильтруют по названию.
+        function selectedOptionText(select) {
+            const opt = select.options[select.selectedIndex];
+            return opt ? opt.textContent.trim() : '';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            bindCalculation();
+            calculateMonthlyPayment();
+
+            // Независимые справочники — грузим сразу при открытии страницы
+            loadDropdown('client_type', DROPDOWN_ENDPOINTS.client_type);
+            loadDropdown('gender', DROPDOWN_ENDPOINTS.gender);
+            loadDropdown('category', DROPDOWN_ENDPOINTS.category);
+            loadDropdown('region', DROPDOWN_ENDPOINTS.region);
+            loadDropdown('income_source', DROPDOWN_ENDPOINTS.income_source);
+            // subcategory, brand и mfi_name изначально disabled — грузятся по каскаду ниже
+
+            // Каскад "Категория -> Подкатегория -> Бренд"
+            const categorySelect = document.getElementById('category');
+            const subcategorySelect = document.getElementById('subcategory');
+            const brandSelect = document.getElementById('brand');
+
+            categorySelect.addEventListener('change', () => {
+                // Сбрасываем всё, что ниже по цепочке
+                brandSelect.disabled = true;
+                brandSelect.innerHTML = '<option value="" selected>Сначала выберите подкатегорию</option>';
+
+                if (categorySelect.value) {
+                    subcategorySelect.disabled = false;
+                    loadDropdown('subcategory', DROPDOWN_ENDPOINTS.subcategory, { query: selectedOptionText(categorySelect) });
+                } else {
+                    subcategorySelect.disabled = true;
+                    subcategorySelect.innerHTML = '<option value="" selected>Выберите...</option>';
+                }
+            });
+
+            subcategorySelect.addEventListener('change', () => {
+                if (subcategorySelect.value) {
+                    brandSelect.disabled = false;
+                    loadDropdown('brand', DROPDOWN_ENDPOINTS.brand, { query: selectedOptionText(subcategorySelect) });
+                } else {
+                    brandSelect.disabled = true;
+                    brandSelect.innerHTML = '<option value="" selected>Сначала выберите подкатегорию</option>';
+                }
+            });
+
+            // Каскад "Регион -> МФЙ"
+            const regionSelect = document.getElementById('region');
+            const mfiSelect = document.getElementById('mfi_name');
+
+            regionSelect.addEventListener('change', () => {
+                if (regionSelect.value) {
+                    mfiSelect.disabled = false;
+                    loadDropdown('mfi_name', DROPDOWN_ENDPOINTS.mfi_name, { query: selectedOptionText(regionSelect) });
+                } else {
+                    mfiSelect.disabled = true;
+                    mfiSelect.innerHTML = '<option value="" selected>Сначала выберите регион</option>';
+                }
+            });
+
+            // Работа: поиск по мере ввода
+            initJobSearch();
+        });
+
+        // ---------------------------------------------------------------
+        // Работа: комбобокс с поиском по /api/jobs?query=
+        // ---------------------------------------------------------------
+        function initJobSearch() {
+            const input = document.getElementById('job_search');
+            const hiddenInput = document.getElementById('job');
+            const suggestionsBox = document.getElementById('job_suggestions');
+            let debounceTimer = null;
+            let lastQuery = '';
+
+            function hideSuggestions() {
+                suggestionsBox.classList.add('hidden');
+                suggestionsBox.innerHTML = '';
+            }
+
+            function renderSuggestions(items) {
+                suggestionsBox.innerHTML = '';
+                if (!items.length) {
+                    suggestionsBox.innerHTML = '<div class="px-3 py-2 text-zinc-400">Ничего не найдено</div>';
+                    suggestionsBox.classList.remove('hidden');
+                    return;
+                }
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'px-3 py-2 cursor-pointer hover:bg-zinc-100 text-zinc-800';
+                    row.textContent = item.name ?? item.title ?? String(item.id);
+                    row.addEventListener('mousedown', (e) => {
+                        // mousedown, а не click, чтобы сработать раньше blur у input
+                        e.preventDefault();
+                        input.value = row.textContent;
+                        hiddenInput.value = item.id;
+                        hideSuggestions();
+                    });
+                    suggestionsBox.appendChild(row);
+                });
+                suggestionsBox.classList.remove('hidden');
+            }
+
+            input.addEventListener('input', () => {
+                const query = input.value.trim();
+                hiddenInput.value = ''; // пока не выбрали конкретный вариант из списка — значение не валидно
+
+                clearTimeout(debounceTimer);
+
+                if (query.length < 1) {
+                    hideSuggestions();
+                    return;
+                }
+
+                debounceTimer = setTimeout(async () => {
+                    lastQuery = query;
+                    try {
+                        const items = await fetchDropdownData(DROPDOWN_ENDPOINTS.job, { query });
+                        // защита от гонки запросов: показываем только самый свежий результат
+                        if (query === lastQuery) {
+                            renderSuggestions(items);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        suggestionsBox.innerHTML = '<div class="px-3 py-2 text-rose-600">Ошибка загрузки</div>';
+                        suggestionsBox.classList.remove('hidden');
+                    }
+                }, 300);
+            });
+
+            input.addEventListener('blur', () => {
+                // небольшая задержка, чтобы mousedown на варианте успел отработать
+                setTimeout(hideSuggestions, 150);
+            });
+
+            input.addEventListener('focus', () => {
+                if (suggestionsBox.innerHTML && input.value.trim().length > 0) {
+                    suggestionsBox.classList.remove('hidden');
+                }
+            });
+        }
+
+        function bindCalculation() {
+            document.querySelectorAll('.calc-input').forEach(el => {
+                el.addEventListener('input', calculateMonthlyPayment);
+                el.addEventListener('change', calculateMonthlyPayment);
+            });
+        }
+
+        function calculateMonthlyPayment() {
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            const quantity = parseFloat(document.getElementById('quantity').value) || 0;
+            const ratePercent = parseFloat(document.getElementById('rate_percent').value) || 0;
+            const initialPayment = parseFloat(document.getElementById('initial_payment').value) || 0;
+            const termMonths = parseInt(document.getElementById('term_months').value) || 0;
+
+            const totalPrice = price * quantity;
+            const financedAmount = Math.max(totalPrice - initialPayment, 0);
+
+            let monthlyPayment = 0;
+
+            if (termMonths > 0) {
+                const monthlyRate = ratePercent / 100;
+                // Простая (не аннуитетная) ставка:
+                // общая сумма к возврату = сумма * (1 + месячная_ставка * срок)
+                // ежемесячный платёж = общая сумма / срок
+                monthlyPayment = financedAmount * (1 + monthlyRate * termMonths) / termMonths;
+            }
+
+            const formatted = isFinite(monthlyPayment) && monthlyPayment > 0
+                ? Math.round(monthlyPayment).toLocaleString('ru-RU')
+                : '0';
+
+            document.getElementById('monthly_payment').value = formatted;
+        }
+    </script>
+</body>
+</html>

@@ -4,159 +4,21 @@ from django.middleware.csrf import get_token
 from django.shortcuts import render
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import redirect
 import requests
+import json
+from datetime import datetime
 
 # Import your newly created models
 from .models import VerificationItem, VerificationReport
+# Import TRANSLATIONS
+from .translations import TRANSLATIONS
 
 MIB_URL = "http://91.90.216.68:9012"
 KATM_URL = "http://91.90.216.68:9013"
 
 _MISSING = object()
-
-TRANSLATIONS = {
-    "ru": {
-        "lang_code": "ru",
-        "doc_title": "Верификация и кредитный скоринг",
-        "portal_badge": "Портал верификации",
-        "header_title": "Верификация ПИНФЛ / КАТМ",
-        "header_subtitle": "Введите ПИНФЛ или загрузите официальный PDF-отчет КАТМ для автоматизированного комплаенс-анализа.",
-        "tab_pinfl": "ПИНФЛ",
-        "tab_katm_pdf": "КАТМ PDF",
-        "pinfl_label": "14-значный ПИНФЛ",
-        "pinfl_placeholder": "31201991234567",
-        "pinfl_hint": "Введите персональный идентификационный номер физического лица.",
-        "katm_report_label": "Отчет КАТМ (.pdf)",
-        "click_to_upload": "Нажмите для загрузки PDF КАТМ",
-        "max_file_size": "Максимальный размер файла: 10 МБ",
-        "run_verification": "Запустить проверку",
-        "results_title": "Результаты проверки",
-        "results_subtitle": "Статус автоматических правил валидации",
-        "checks_run": "проверок выполнено",
-        "pass": "Пройдено",
-        "fail": "Не пройдено",
-        "no_data": "Нет данных",
-        "no_results_title": "Нет результатов для отображения",
-        "no_results_subtitle": "Отправьте ПИНФЛ или отчет КАТМ для просмотра критериев и оценки.",
-        "days": "дн.",
-        "sum": "сум",
-        "err_pinfl_length": "ПИНФЛ должен состоять ровно из 14 цифр.",
-        "err_mib_prefix": "Ошибка при получении данных МИБ: ",
-        "err_no_file": "Пожалуйста, выберите PDF-файл отчета КАТМ для загрузки.",
-        "err_no_pinfl_in_pdf": "Не удалось извлечь ПИНФЛ из загруженного PDF-файла КАТМ.",
-        "err_katm_prefix": "Ошибка при обработке файла КАТМ: ",
-        "rule_mib_fly": "МИБ: Запрет на выезд за границу",
-        "rule_mib_fly_has": "Имеется запрет",
-        "rule_mib_fly_none": "Запрет отсутствует",
-        "rule_mib_history": "МИБ: Наличие исполнительных производств / негативная история",
-        "rule_mib_history_has": "Имеется негативная история",
-        "rule_mib_history_none": "История чистая",
-        "rule_mib_admin": "МИБ: Административные штрафы (Лимит: ≤ 500 000 сум)",
-        "rule_mib_debt": "МИБ: Взыскание задолженностей (Лимит: ≤ 200 000 сум)",
-        "rule_katm_score": "КАТМ: Скоринг балл (> 200)",
-        "rule_katm_prin_days": "КАТМ: Макс. дней просрочки по осн. долгу (≤ 150 дней)",
-        "rule_katm_cont_days": "КАТМ: Макс. непрерывных дней просрочки по % (≤ 120 дней)",
-        "rule_katm_prin_amount": "КАТМ: Макс. сумма просрочки по осн. долгу (≤ 5 000 000 сум)",
-        "rule_katm_pct_amount": "КАТМ: Макс. сумма просрочки по % (≤ 3 000 000 сум)",
-        "rule_katm_lti": "КАТМ: Долговая нагрузка (LTI ≤ 30%)",
-        "export_pdf": "Экспорт PDF",
-        "clear": "Очистить",
-    },
-    "uz_lat": {
-        "lang_code": "uz",
-        "doc_title": "Verifikatsiya va kredit tekshiruvi",
-        "portal_badge": "Verifikatsiya portali",
-        "header_title": "JShShIR / KATM Verifikatsiyasi",
-        "header_subtitle": "Avtomatlashtirilgan tahlil uchun JShShIR kiriting yoki rasmiy KATM PDF hisobotini yuklang.",
-        "tab_pinfl": "JShShIR",
-        "tab_katm_pdf": "KATM PDF",
-        "pinfl_label": "14 xonali JShShIR",
-        "pinfl_placeholder": "31201991234567",
-        "pinfl_hint": "Jismoniy shaxsning shaxsiy identifikatsiya raqamini kiriting.",
-        "katm_report_label": "KATM hisoboti (.pdf)",
-        "click_to_upload": "KATM PDF faylini yuklash uchun bosing",
-        "max_file_size": "Faylning maksimal hajmi: 10 MB",
-        "run_verification": "Tekshiruvni boshlash",
-        "results_title": "Tekshiruv natijalari",
-        "results_subtitle": "Avtomatik tekshirish qoidalari holati",
-        "checks_run": "ta tekshiruv o'tkazildi",
-        "pass": "O'tdi",
-        "fail": "O'tmadi",
-        "no_data": "Ma'lumot yo'q",
-        "no_results_title": "Ko'rsatish uchun natijalar yo'q",
-        "no_results_subtitle": "Mezonlar va ballarni ko'rish uchun JShShIR yoki KATM hujjatini yuboring.",
-        "days": "kun",
-        "sum": "so'm",
-        "err_pinfl_length": "JShShIR roppa-rosa 14 ta raqamdan iborat bo'lishi kerak.",
-        "err_mib_prefix": "MIB ma'lumotlarini olishda xatolik: ",
-        "err_no_file": "Iltimos, yuklash uchun KATM hisoboti PDF faylini tanlang.",
-        "err_no_pinfl_in_pdf": "Yuklangan KATM PDF faylidan JShShIR aniqlanmadi.",
-        "err_katm_prefix": "KATM faylini qayta ishlashda xatolik: ",
-        "rule_mib_fly": "MIB: Chet elga chiqishga taqiq",
-        "rule_mib_fly_has": "Taqiq mavjud",
-        "rule_mib_fly_none": "Taqiq mavjud emas",
-        "rule_mib_history": "MIB: Ijro ishlari / salbiy tarix mavjudligi",
-        "rule_mib_history_has": "Salbiy tarix mavjud",
-        "rule_mib_history_none": "Tarixi toza",
-        "rule_mib_admin": "MIB: Ma'muriy jarimalar (Cheklov: ≤ 500 000 so'm)",
-        "rule_mib_debt": "MIB: Qarzdorlikni undirish (Cheklov: ≤ 200 000 so'm)",
-        "rule_katm_score": "KATM: Skoring bali (> 200)",
-        "rule_katm_prin_days": "KATM: Asosiy qarz bo'yicha maks. kechikish kunlari (≤ 150 kun)",
-        "rule_katm_cont_days": "KATM: Foizlar bo'yicha maks. uzluksiz kechikish kunlari (≤ 120 kun)",
-        "rule_katm_prin_amount": "KATM: Asosiy qarz bo'yicha maks. kechikish summasi (≤ 5 000 000 so'm)",
-        "rule_katm_pct_amount": "KATM: Foizlar bo'yicha maks. kechikish summasi (≤ 3 000 000 so'm)",
-        "rule_katm_lti": "KATM: Qarz yuki (LTI ≤ 30%)",
-        "export_pdf": "PDF Export",
-        "clear": "Tozalash",
-    },
-    "uz_cyr": {
-        "lang_code": "uz-Cyrl",
-        "doc_title": "Верификация ва кредит текшируви",
-        "portal_badge": "Верификация портали",
-        "header_title": "ЖШШИР / КАТМ Верификацияси",
-        "header_subtitle": "Автоматлаштирилган таҳлил учун ЖШШИР киритинг ёки расмий КАТМ PDF ҳисоботини юкланг.",
-        "tab_pinfl": "ЖШШИР",
-        "tab_katm_pdf": "КАТМ PDF",
-        "pinfl_label": "14 хонали ЖШШИР",
-        "pinfl_placeholder": "31201991234567",
-        "pinfl_hint": "Жисмоний шахснинг шахсий идентификация рақамини киритинг.",
-        "katm_report_label": "КАТМ ҳисоботи (.pdf)",
-        "click_to_upload": "КАТМ PDF файлини юклаш учун босинг",
-        "max_file_size": "Файлнинг максимал ҳажми: 10 МБ",
-        "run_verification": "Текширувни бошлаш",
-        "results_title": "Текширув натижалари",
-        "results_subtitle": "Автоматик текшириш қоидалари ҳолати",
-        "checks_run": "та текширув ўтказилди",
-        "pass": "Ўтди",
-        "fail": "Ўтмади",
-        "no_data": "Маълумот йўқ",
-        "no_results_title": "Кўрсатиш учун натижалар йўқ",
-        "no_results_subtitle": "Мезонлар ва балларни кўриш учун ЖШШИР ёки КАТМ ҳужжатини юборинг.",
-        "days": "кун",
-        "sum": "сўм",
-        "err_pinfl_length": "ЖШШИР роппа-роса 14 та рақамдан иборат бўлиши керак.",
-        "err_mib_prefix": "МИБ маълумотларини олишда хатолик: ",
-        "err_no_file": "Илтимос, юклаш учун КАТМ ҳисоботи PDF файлини танланг.",
-        "err_no_pinfl_in_pdf": "Юкланган КАТМ PDF файлидан ЖШШИР аниқланмади.",
-        "err_katm_prefix": "КАТМ файлини қайта ишлашда хатолик: ",
-        "rule_mib_fly": "МИБ: Чет элга чиқишга тақиқ",
-        "rule_mib_fly_has": "Тақиқ мавжуд",
-        "rule_mib_fly_none": "Тақиқ мавжуд эмас",
-        "rule_mib_history": "МИБ: Ижро ишлари / салбий тарих мавжудлиги",
-        "rule_mib_history_has": "Салбий тарих мавжуд",
-        "rule_mib_history_none": "Тарихи тоза",
-        "rule_mib_admin": "МИБ: Маъмурий жарималар (Чеклов: ≤ 500 000 сўм)",
-        "rule_mib_debt": "МИБ: Қарздорликни ундириш (Чеклов: ≤ 200 000 сўм)",
-        "rule_katm_score": "КАТМ: Скоринг бали (> 200)",
-        "rule_katm_prin_days": "КАТМ: Асосий қарз бўйича макс. кечикиш кунлари (≤ 150 кун)",
-        "rule_katm_cont_days": "КАТМ: Фоизлар бўйича макс. узлуксиз кечикиш кунлари (≤ 120 кун)",
-        "rule_katm_prin_amount": "КАТМ: Асосий қарз бўйича макс. кечикиш суммаси (≤ 5 000 000 сўм)",
-        "rule_katm_pct_amount": "КАТМ: Фоизлар бўйича макс. кечикиш суммаси (≤ 3 000 000 сўм)",
-        "rule_katm_lti": "КАТМ: Қарз юки (LTI ≤ 30%)",
-        "export_pdf": "PDF Экспорт",
-        "clear": "Тозалаш",
-    },
-}
 
 
 def send_request(url):
@@ -534,3 +396,103 @@ def profile(request):
     }
 
     return render(request, "profile.html", context)
+
+
+def score(request):
+    lang = request.GET.get("lang") or "ru"
+    if lang not in TRANSLATIONS:
+        lang = "ru"
+
+    t = TRANSLATIONS[lang]
+
+    if request.method == 'GET':
+        if request.GET.get('pinfl', None) == None:
+            return redirect('main')
+        context = {
+            "t": t,
+            "lang": lang,
+            "pinfl_val": request.GET.get('pinfl')
+        }
+        return render(request, "application.html", context)
+
+    if request.method == 'POST':
+        p = request.POST
+        f = lambda k, d=0.0: float(str(p.get(k, d) or d).replace(' ', '').replace('\xa0', '').replace(',', '.'))
+
+        # Convert date to DD.MM.YYYY format
+        raw_date = p.get('birth_date', '').strip()
+        date_birth = ''
+        if raw_date:
+            try:
+                # Handles '1987-08-10' -> '10.08.1987'
+                date_birth = datetime.strptime(raw_date, '%Y-%m-%d').strftime('%d.%m.%Y')
+            except ValueError:
+                date_birth = raw_date  # Keep as-is if already in DD.MM.YYYY
+
+        payload = {
+            "category": p.get('category', '').strip(),
+            "sub_category": p.get('subcategory', '').strip(),
+            "brand": p.get('brand', '').strip(),
+            "region": p.get('region', '').strip(),
+            "income_source": p.get('income_source', '').strip(),
+            "gender": p.get('gender', '').strip(),
+            "client_type": p.get('client_type', '').strip(),
+            "date_birth": date_birth,  # Correctly formatted: DD.MM.YYYY
+            "mfy_name": p.get('mfi_name', '').strip(),
+            "job": p.get('job'),
+            "pinfl": p.get('pinfl', '').strip(),
+            "loan_period": int(p.get('term_months') or 1),
+            "quantity": int(p.get('quantity') or 1),
+            "product_price": f('price'),
+            "prepayment_amount": f('initial_payment'),
+            "monthly_payment": f('monthly_payment'),
+            "additional_income": f('additional_income'),
+            "interest_rate": f('rate_percent'),
+            "monthly_income": f('monthly_income'),
+        }
+
+        url = "https://barakasavdo.moliy.ai/api/predict"
+
+        try:
+            res = requests.post(
+                url,
+                data=payload,
+                auth=("filial3admin", "GE11w6sFNsJ5"),
+                timeout=30
+            )
+
+            # 1. Check HTTP Status Code
+            if not res.ok:
+                try:
+                    err_msg = res.json().get('detail') or res.json().get('message') or res.text
+                except Exception:
+                    err_msg = res.text
+                return render(request, 'score.html', {'error': f"API Error ({res.status_code}): {err_msg}"})
+
+            # 2. Parse JSON
+            resp_json = res.json()
+
+            # 3. Safely extract prediction without KeyError
+            prediction = resp_json.get('data', {}).get('prediction') if isinstance(resp_json, dict) else None
+
+            if prediction is None:
+                return render(request, 'score.html', {'error': f"Unexpected response format: {resp_json}"})
+
+            return render(request, 'score.html', {'data': prediction})
+
+        except requests.exceptions.Timeout:
+            return render(request, 'score.html', {'error': "Время ожидания ответа от сервера скоринга истекло (Timeout)."})
+        except requests.exceptions.RequestException as e:
+            return render(request, 'score.html', {'error': f"Ошибка соединения с сервисом скоринга: {e}"})
+        except Exception as e:
+            return render(request, 'score.html', {'error': f"Непредвиденная ошибка: {e}"})
+
+        return render(request, 'score.html', {'data': data})
+
+
+def score_response(request):
+    context = {
+        "score": 0.78,
+        "decisiion": "Approve"
+    }
+    return render(request, "")
